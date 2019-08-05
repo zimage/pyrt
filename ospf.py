@@ -119,8 +119,8 @@ OSPF_LSAEXT_LEN = struct.calcsize(OSPF_LSAEXT)
 OSPF_LSAEXT_METRIC     = "> BBH L L"
 OSPF_LSAEXT_METRIC_LEN = struct.calcsize(OSPF_LSAEXT_METRIC)
 
-OSPF_LSAOPQ     = "> HH"
-OSPF_LSAOPQ_LEN = struct.calcsize(OSPF_LSAOPQ)
+OSPF_LSAOPQ_TL     = "> HH"
+OSPF_LSAOPQ_TL_LEN = struct.calcsize(OSPF_LSAOPQ_TL)
 
 ################################################################################
 
@@ -201,6 +201,10 @@ TE_LINK_SUBTYPE_LS = { 1: 1,
                        8: 32,
                        9: 4,
                        }
+
+TE_LINK_TYPES = { 1: "P2P",
+                  2: "MULTI_ACCESS",
+                  }
 
 GRACE_TLV_TS = { 1: "PERIOD",
                  2: "REASON",
@@ -477,11 +481,11 @@ def parseOspfLsaExt(lsa, verbose=1, level=0):
 def parseOspfLsaOpaq(lsa, verbose=1, level=0):
  
     while len(lsa) > 0:
-        if verbose > 1: print(prtbin(level*INDENT, lsa[:OSPF_LSAOPQ_LEN]))
-        (type, leng, ) = struct.unpack(OSPF_LSAOPQ, lsa[:OSPF_LSAOPQ_LEN])
+        if verbose > 1: print(prtbin(level*INDENT, lsa[:OSPF_LSAOPQ_TL_LEN]))
+        (type, leng, ) = struct.unpack(OSPF_LSAOPQ_TL, lsa[:OSPF_LSAOPQ_TL_LEN])
         if verbose > 0: print(level*INDENT + "type:%s" % TE_TLV_TS[type])
 
-        lsa = lsa[OSPF_LSAOPQ_LEN:] ; cnt = 0
+        lsa = lsa[OSPF_LSAOPQ_TL_LEN:]; cnt = 0
         if type == 1:
             FOO = "> L"
             FOO_LEN = struct.calcsize(FOO)
@@ -489,9 +493,23 @@ def parseOspfLsaOpaq(lsa, verbose=1, level=0):
             print((level+1)*INDENT + "rtr:%s" % id2str(rtr))
             lsa = lsa[FOO_LEN:]
         elif type == 2:
-            lsa = lsa[leng:]
+            while len(lsa) > 0:
+                if verbose > 1: print(prtbin((level+1)*INDENT, lsa[:OSPF_LSAOPQ_TL_LEN]))
+                (subtype, subtype_leng, ) = struct.unpack(OSPF_LSAOPQ_TL, lsa[:OSPF_LSAOPQ_TL_LEN])
+                if verbose > 0: print((level+1)*INDENT + "%s: subtype:%s" % (cnt, TE_LINK_SUBTYPES[subtype]))
 
-        cnt += 1
+                lsa = lsa[OSPF_LSAOPQ_TL_LEN:]
+                if subtype == 1:
+                    FOO = "> BBH"
+                    FOO_LEN = struct.calcsize(FOO)
+                    (type, _, _, ) = struct.unpack(FOO, lsa[:FOO_LEN])
+                    print((level+2)*INDENT + "type:%s" % TE_LINK_TYPES[type])
+                    lsa = lsa[FOO_LEN:]
+                else:
+                    print((level+2)*INDENT + "type:%s **** Not Parsed ****" % TE_LINK_TYPES[type])
+                    lsa = lsa[subtype_leng:]
+
+                cnt += 1
 
     return { "TYPE" : type,
            }
