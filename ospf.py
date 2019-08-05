@@ -494,6 +494,8 @@ def parseOspfLsaOpaq(lsa, verbose=1, level=0):
             lsa = lsa[FOO_LEN:]
         elif type == 2:
             while len(lsa) > 0:
+                cnt += 1
+
                 if verbose > 1: print(prtbin((level+1)*INDENT, lsa[:OSPF_LSAOPQ_TL_LEN]))
                 (subtype, subtype_leng, ) = struct.unpack(OSPF_LSAOPQ_TL, lsa[:OSPF_LSAOPQ_TL_LEN])
                 if verbose > 0: print((level+1)*INDENT + "%s: subtype:%s" % (cnt, TE_LINK_SUBTYPES[subtype]))
@@ -514,17 +516,38 @@ def parseOspfLsaOpaq(lsa, verbose=1, level=0):
                 elif subtype == 3:
                     addresses = lsa[:subtype_leng]; a_cnt = 0
                     while len(addresses) > 0:
+                        a_cnt += 1
                         FOO = "> L"
                         FOO_LEN = struct.calcsize(FOO)
                         addresses = addresses[FOO_LEN:]
                         (id, ) = struct.unpack(FOO, lsa[:FOO_LEN])
                         print((level+2)*INDENT + "%s: address:%s" % (a_cnt, id2str(id)))
                     lsa = lsa[subtype_leng:]
+                elif subtype == 4:
+                    addresses = lsa[:subtype_leng]; a_cnt = 0
+                    while len(addresses) > 0:
+                        a_cnt += 1
+                        FOO = "> L"
+                        FOO_LEN = struct.calcsize(FOO)
+                        addresses = addresses[FOO_LEN:]
+                        (id, ) = struct.unpack(FOO, lsa[:FOO_LEN])
+                        print((level+2)*INDENT + "%s: address:%s" % (a_cnt, id2str(id)))
+                    lsa = lsa[subtype_leng:]
+                elif subtype == 5:
+                    FOO = "> L"
+                    FOO_LEN = struct.calcsize(FOO)
+                    (metric, ) = struct.unpack(FOO, lsa[:FOO_LEN])
+                    print((level+2)*INDENT + "metric:%s" % metric)
+                    lsa = lsa[FOO_LEN:]
+                elif subtype == 6:
+                    FOO = "> f"
+                    FOO_LEN = struct.calcsize(FOO)
+                    (bandwidth, ) = struct.unpack(FOO, lsa[:FOO_LEN])
+                    print((level+2)*INDENT + "bandwidth:%.0f bps" % (bandwidth*8))
+                    lsa = lsa[FOO_LEN:]
                 else:
                     print((level+2)*INDENT + "**** Not Parsed ****")
                     lsa = lsa[subtype_leng:]
-
-                cnt += 1
 
     return { "TYPE" : type,
            }
