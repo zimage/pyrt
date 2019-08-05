@@ -505,8 +505,23 @@ def parseOspfLsaOpaq(lsa, verbose=1, level=0):
                     (type, ) = struct.unpack(FOO, lsa[:FOO_LEN])
                     print((level+2)*INDENT + "type:%s" % TE_LINK_TYPES[type])
                     lsa = lsa[FOO_LEN:]
+                elif subtype == 2:
+                    FOO = "> L"
+                    FOO_LEN = struct.calcsize(FOO)
+                    (id, ) = struct.unpack(FOO, lsa[:FOO_LEN])
+                    print((level+2)*INDENT + "id:%s" % id2str(id))
+                    lsa = lsa[FOO_LEN:]
+                elif subtype == 3:
+                    addresses = lsa[:subtype_leng]; a_cnt = 0
+                    while len(addresses) > 0:
+                        FOO = "> L"
+                        FOO_LEN = struct.calcsize(FOO)
+                        addresses = addresses[FOO_LEN:]
+                        (id, ) = struct.unpack(FOO, lsa[:FOO_LEN])
+                        print((level+2)*INDENT + "%s: address:%s" % (a_cnt, id2str(id)))
+                    lsa = lsa[subtype_leng:]
                 else:
-                    print((level+2)*INDENT + "type:%s **** Not Parsed ****" % TE_LINK_TYPES[type])
+                    print((level+2)*INDENT + "**** Not Parsed ****")
                     lsa = lsa[subtype_leng:]
 
                 cnt += 1
