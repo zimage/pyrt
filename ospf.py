@@ -98,6 +98,12 @@ OSPF_LSUPD_LEN = struct.calcsize(OSPF_LSUPD)
 OSPF_LSAHDR     = "> HBB L L L HH"
 OSPF_LSAHDR_LEN = struct.calcsize(OSPF_LSAHDR)
 
+OSPF_SHORT_LSAHDR     = "> HBB"
+OSPF_SHORT_LSAHDR_LEN = struct.calcsize(OSPF_SHORT_LSAHDR)
+
+OSPF_OPQ_LSAHDR     = "> HBB BBH L L HH"
+OSPF_OPQ_LSAHDR_LEN = struct.calcsize(OSPF_OPQ_LSAHDR)
+
 OSPF_LSARTR     = "> BBH"
 OSPF_LSARTR_LEN = struct.calcsize(OSPF_LSARTR)
 
@@ -166,7 +172,9 @@ LSA_TYPES = { 1: "ROUTER",             # links between routers in the area
 DLIST += [LSA_TYPES]
 
 OPAQUE_TYPES = { 1: "TRAFFIC ENGINEERING",
+                 2: "SYCAMORE",
                  3: "GRACEFUL RESTART",
+                 4: "ROUTER INFORMATION",
                  }
 DLIST += [OPAQUE_TYPES]
 
@@ -317,23 +325,47 @@ def parseOspfOpts(opts, verbose=1, level=0):
 def parseOspfLsaHdr(hdr, verbose=1, level=0):
 
     if verbose > 1: print(prtbin(level*INDENT, hdr))
-    (age, opts, typ, lsid, advrtr, lsseqno, cksum, length) = struct.unpack(OSPF_LSAHDR, hdr)
+    (_, _, typ, ) = struct.unpack(OSPF_SHORT_LSAHDR, hdr[:OSPF_SHORT_LSAHDR_LEN])
 
-    if verbose > 0:
-        print(level*INDENT +\
-              "age:%s, type:%s, lsid:%s, advrtr:%s, lsseqno:%s, cksum:%x, len:%s" %(
-                  age, LSA_TYPES[typ], id2str(lsid), id2str(advrtr), lsseqno, cksum, length))
-    opts = parseOspfOpts(opts, verbose, level)
+    if typ in [9, 10, 11]:
+        (age, opts, typ, opaqtyp, opaqid_h, opaqid_l, advrtr, lsseqno, cksum, length) = struct.unpack(OSPF_OPQ_LSAHDR, hdr)
+        (opaqid, ) = struct.unpack(">L", struct.pack(">BBH", 0, opaqid_h, opaqid_l))
 
-    return { "AGE"     : age,
-             "OPTS"    : opts,
-             "T"       : typ,
-             "LSID"    : lsid,
-             "ADVRTR"  : advrtr,
-             "LSSEQNO" : lsseqno,
-             "CKSUM"   : cksum,
-             "L"       : length,
-             }
+        if verbose > 0:
+            print(level*INDENT +\
+                "age:%s, type:%s, opaqtyp:%s, opaqid: %s advrtr:%s, lsseqno:%s, cksum:%x, len:%s" %(
+                      age, LSA_TYPES[typ], OPAQUE_TYPES[opaqtyp], opaqid, id2str(advrtr), lsseqno, cksum, length))
+        opts = parseOspfOpts(opts, verbose, level)
+
+        return { "AGE"     : age,
+                 "OPTS"    : opts,
+                 "T"       : typ,
+                 "OPAQTYP" : opaqtyp,
+                 "OPAQID"  : opaqid,
+                 "ADVRTR"  : advrtr,
+                 "LSSEQNO" : lsseqno,
+                 "CKSUM"   : cksum,
+                 "L"       : length,
+                 }
+
+    else:
+        (age, opts, typ, lsid, advrtr, lsseqno, cksum, length) = struct.unpack(OSPF_LSAHDR, hdr)
+
+        if verbose > 0:
+            print(level*INDENT +\
+                  "age:%s, type:%s, lsid:%s, advrtr:%s, lsseqno:%s, cksum:%x, len:%s" %(
+                      age, LSA_TYPES[typ], id2str(lsid), id2str(advrtr), lsseqno, cksum, length))
+        opts = parseOspfOpts(opts, verbose, level)
+
+        return { "AGE"     : age,
+                 "OPTS"    : opts,
+                 "T"       : typ,
+                 "LSID"    : lsid,
+                 "ADVRTR"  : advrtr,
+                 "LSSEQNO" : lsseqno,
+                 "CKSUM"   : cksum,
+                 "L"       : length,
+                 }
 
 def parseOspfLsaRtr(lsa, verbose=1, level=0):
 
@@ -479,7 +511,7 @@ def parseOspfLsaExt(lsa, verbose=1, level=0):
              }
 
 def parseOspfLsaOpaq(lsa, verbose=1, level=0):
- 
+
     while len(lsa) > 0:
         if verbose > 1: print(prtbin(level*INDENT, lsa[:OSPF_LSAOPQ_TL_LEN]))
         (type, leng, ) = struct.unpack(OSPF_LSAOPQ_TL, lsa[:OSPF_LSAOPQ_TL_LEN])
@@ -579,6 +611,7 @@ def parseOspfLsas(lsas, verbose=1, level=0):
         elif t == LSA_TYPES["EXTERNAL AS"]:
             rv[cnt]["V"] = parseOspfLsaExt(lsas[OSPF_LSAHDR_LEN:l], verbose, level+1)
         elif t == LSA_TYPES["OPAQUE AREA LOCAL"]:
+            # TODO: need to use rv[cnt]["H"]["OPAQTYP"]
             rv[cnt]["V"] = parseOspfLsaOpaq(lsas[OSPF_LSAHDR_LEN:l], verbose, level+1)
 
         else:
