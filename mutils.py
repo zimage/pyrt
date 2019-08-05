@@ -25,6 +25,8 @@
 #
 
 import string, struct, sys
+import ipaddress
+from bitstring import BitArray
 
 #-------------------------------------------------------------------------------
 
@@ -123,21 +125,12 @@ def id2pfx(id):
 #-------------------------------------------------------------------------------
 
 def id2str(id):
-
-    return "%d.%d.%d.%d" %\
-           (int( ((id & 0xff000000) >> 24) & 0xff),
-            int( ((id & 0x00ff0000)  >> 16) & 0xff),
-            int( ((id & 0x0000ff00)  >>  8) & 0xff),
-            int( (id  & 0x000000ff)         & 0xff) )
+    return str(ipaddress.ip_address(id))
 
 #-------------------------------------------------------------------------------
 
 def str2id(str):
-
-    quads = str.split('.')
-    ret   = (int(quads[0]) << 24) + (int(quads[1]) << 16) + \
-            (int(quads[2]) <<  8) + (int(quads[3]) <<  0)
-    return ret
+    return int(ipaddress.ip_address(str))
 
 #-------------------------------------------------------------------------------
 
@@ -208,14 +201,8 @@ def str2bin(str):
         return ""
 
     ret = ""
-    for i in range(len(str)):
-        s = ""
-        n = ord(str[i])
-        for j in range(7, -1, -1):
-            b = n / (2**j)
-            n = n % (2**j)
-            s = s + repr(b)
-        ret = ret + ("%s." % s)
+    for byte in [str[i:i+1] for i in range(len(str))]:
+        ret += BitArray(byte).bin + '.'
 
     return ret
 
