@@ -500,9 +500,9 @@ def parseOspfLsaOpaq(lsa, verbose=1, level=0):
 
                 lsa = lsa[OSPF_LSAOPQ_TL_LEN:]
                 if subtype == 1:
-                    FOO = "> BBH"
+                    FOO = "> Bxxx"
                     FOO_LEN = struct.calcsize(FOO)
-                    (type, _, _, ) = struct.unpack(FOO, lsa[:FOO_LEN])
+                    (type, ) = struct.unpack(FOO, lsa[:FOO_LEN])
                     print((level+2)*INDENT + "type:%s" % TE_LINK_TYPES[type])
                     lsa = lsa[FOO_LEN:]
                 else:
